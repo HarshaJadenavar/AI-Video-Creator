@@ -1,0 +1,23 @@
+body{
+
+background:#edf2f7;
+
+}
+
+.card{
+
+border-radius:20px;
+
+}
+
+textarea{
+
+resize:none;
+
+}
+
+.btn{
+
+padding:12px 40px;
+
+}
