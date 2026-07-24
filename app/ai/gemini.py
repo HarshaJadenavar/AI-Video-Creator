@@ -1,21 +1,19 @@
 import os
-import google.generativeai as genai
 from dotenv import load_dotenv
+from google import genai
 
 # Load environment variables
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-genai.configure(api_key=GEMINI_API_KEY)
-
-model = genai.GenerativeModel("gemini-2.5-flash")
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
 
 
 class GeminiAI:
 
     def __init__(self):
-        self.model = model
+        self.client = client
 
     def generate_story(self, prompt):
 
@@ -49,12 +47,12 @@ Story Idea:
 """
 
         try:
-            response = self.model.generate_content(full_prompt)
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=full_prompt
+            )
 
-            if response.text:
-                return response.text.strip()
-
-            return "Story generation failed."
+            return response.text.strip()
 
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"Error: {e}"
