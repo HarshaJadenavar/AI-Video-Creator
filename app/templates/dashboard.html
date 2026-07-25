@@ -1,274 +1,256 @@
 {% extends "base.html" %}
 
-{% block title %}AI Video Creator Dashboard{% endblock %}
+{% block title %}
+AI Video Creator
+{% endblock %}
 
 {% block content %}
 
-<div class="container py-5">
+<div class="dashboard">
 
-    <div class="card shadow-lg">
+    <!-- ================= LEFT PANEL ================= -->
 
-        <div class="card-body">
+    <div class="left-panel">
 
-            <h1 class="text-center text-primary mb-4">
-                🚀 AI Video Creator
-            </h1>
+        <div class="welcome-card">
 
-            <hr>
+            <h1>🚀 AI Video Creator</h1>
 
-            <!-- Project Name -->
+            <p>
+                Generate AI-powered YouTube stories, images, narration and videos
+                from a single prompt.
+            </p>
 
-            <div class="mb-3">
+        </div>
 
-                <label class="form-label">
+        <!-- STORY -->
 
-                    Project Name
+        <div class="card-section">
 
-                </label>
+            <h2>📖 Generated Story</h2>
 
-                <input
-                    type="text"
-                    id="project_name"
-                    class="form-control"
-                    placeholder="Example: Brave Rabbit Adventure">
+            <div id="storyOutput" class="content-box">
 
-            </div>
-
-            <!-- Prompt -->
-
-            <div class="mb-3">
-
-                <label class="form-label">
-
-                    Story Prompt
-
-                </label>
-
-                <textarea
-                    id="prompt"
-                    class="form-control"
-                    rows="8"
-                    placeholder="Example: Write a 5 minute children's story about a brave rabbit..."></textarea>
+                <p class="placeholder">
+                    Your generated story will appear here...
+                </p>
 
             </div>
 
-            <!-- Duration & Style -->
+        </div>
 
-            <div class="row">
+        <!-- STORYBOARD -->
 
-                <div class="col-md-6 mb-3">
+        <div class="card-section">
 
-                    <label class="form-label">
+            <h2>🎬 Storyboard</h2>
 
-                        Duration
+            <div id="storyboard" class="content-box">
 
-                    </label>
-
-                    <select
-                        id="duration"
-                        class="form-select">
-
-                        <option>1 Minute</option>
-                        <option>3 Minutes</option>
-                        <option selected>5 Minutes</option>
-                        <option>10 Minutes</option>
-
-                    </select>
-
-                </div>
-
-                <div class="col-md-6 mb-3">
-
-                    <label class="form-label">
-
-                        Style
-
-                    </label>
-
-                    <select
-                        id="style"
-                        class="form-select">
-
-                        <option selected>Cartoon</option>
-                        <option>Anime</option>
-                        <option>Pixar</option>
-                        <option>Story Book</option>
-                        <option>3D Animation</option>
-
-                    </select>
-
-                </div>
+                <p class="placeholder">
+                    Story scenes will appear here...
+                </p>
 
             </div>
 
-            <!-- Buttons -->
+        </div>
 
-            <div class="d-grid gap-2 mt-4">
+        <!-- IMAGES -->
 
-                <button
-                    id="generateBtn"
-                    class="btn btn-primary btn-lg">
+        <div class="card-section">
 
-                    ✨ Generate Story
+            <h2>🖼 Generated Images</h2>
 
-                </button>
+            <div id="imageGallery" class="image-gallery">
 
-                <button
-                    id="generateSceneBtn"
-                    class="btn btn-success btn-lg"
-                    disabled>
+            </div>
 
-                    🎬 Generate Scenes
+        </div>
 
-                </button>
+        <!-- AUDIO -->
 
-                <button
-                    id="generateImageBtn"
-                    class="btn btn-warning btn-lg"
-                    disabled>
+        <div class="card-section">
 
-                    🖼 Generate Images
+            <h2>🎙 Generated Audio</h2>
 
-                </button>
+            <div id="audioList" class="content-box">
 
-                <button
-                    id="generateVoiceBtn"
-                    class="btn btn-success"
-                    disabled>
+                <p class="placeholder">
+                    Generated narration will appear here...
+                </p>
 
-                    🎙 Generate Voice
+            </div>
 
-                </button>
+        </div>
 
-                <button
+        <!-- VIDEO -->
+
+        <div class="card-section">
+
+            <h2>🎥 Final Video</h2>
+
+            <div id="videoOutput" class="content-box">
+
+                <p class="placeholder">
+                    Your final AI video will appear here...
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ================= RIGHT PANEL ================= -->
+
+    <div class="right-panel">
+
+        <!-- PROJECT SETTINGS -->
+
+        <div class="control-card">
+
+            <h2>Project Settings</h2>
+
+            <label>
+
+                Project Name
+
+            </label>
+
+            <input
+                type="text"
+                id="project_name"
+                placeholder="Example : Brave Rabbit Adventure">
+
+            <label>
+
+                Story Prompt
+
+            </label>
+
+            <textarea
+                id="prompt"
+                rows="8"
+                placeholder="Write a children's story about a brave rabbit..."></textarea>
+
+            <label>
+
+                Video Duration
+
+            </label>
+
+            <select id="duration">
+
+                <option>1 Minute</option>
+                <option>3 Minutes</option>
+                <option selected>5 Minutes</option>
+                <option>10 Minutes</option>
+
+            </select>
+
+            <label>
+
+                Video Style
+
+            </label>
+
+            <select id="style">
+
+                <option selected>Cartoon</option>
+                <option>Pixar</option>
+                <option>Anime</option>
+                <option>Story Book</option>
+                <option>3D Animation</option>
+
+            </select>
+
+        </div>
+
+        <!-- ACTION BUTTONS -->
+
+        <div class="control-card">
+
+            <h2>Generate</h2>
+
+            <button
+                id="generateBtn"
+                class="action-btn primary">
+
+                ✨ Generate Story
+
+            </button>
+
+            <button
+                id="generateSceneBtn"
+                class="action-btn success"
+                disabled>
+
+                🎬 Generate Scenes
+
+            </button>
+
+            <button
+                id="generateImageBtn"
+                class="action-btn warning"
+                disabled>
+
+                🖼 Generate Images
+
+            </button>
+
+            <button
+                id="generateVoiceBtn"
+                class="action-btn info"
+                disabled>
+
+                🎙 Generate Voice
+
+            </button>
+
+            <button
                 id="generateVideoBtn"
-                class="btn btn-danger"
+                class="action-btn danger"
                 disabled>
 
                 🎥 Generate Video
 
-                </button>
+            </button>
+
+        </div>
+
+        <!-- STATUS -->
+
+        <div class="control-card">
+
+            <h2>Generation Status</h2>
+
+            <div id="statusLog" class="status-box">
+
+                ✅ Ready to generate...
 
             </div>
 
         </div>
 
-    </div>
+        <!-- QUICK INFO -->
 
-    <!-- Story -->
+        <div class="control-card">
 
-    <div class="card shadow mt-5">
+            <h2>Workflow</h2>
 
-        <div class="card-body">
+            <ul class="workflow">
 
-            <h3 class="mb-3">
+                <li>1️⃣ Generate Story</li>
 
-                📖 Generated Story
+                <li>2️⃣ Generate Scenes</li>
 
-            </h3>
+                <li>3️⃣ Generate Images</li>
 
-            <div id="storyOutput">
+                <li>4️⃣ Generate Voice</li>
 
-                <p class="text-muted">
+                <li>5️⃣ Generate Video</li>
 
-                    No story generated yet...
-
-                </p>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- Storyboard -->
-
-    <div class="card shadow mt-5">
-
-        <div class="card-body">
-
-            <h3 class="mb-3">
-
-                🎬 Storyboard
-
-            </h3>
-
-            <div id="storyboard">
-
-                <p class="text-muted">
-
-                    No scenes generated yet...
-
-                </p>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- Generated Images -->
-
-    <div class="card shadow mt-5">
-
-        <div class="card-body">
-
-            <h3 class="mb-3">
-
-                🖼 Generated Images
-
-            </h3>
-
-            <div
-                id="imageGallery"
-                class="row g-3">
-
-            </div>
-
-        </div>
-
-    </div>
-    
-    <div class="card shadow mt-4">
-
-    <div class="card-body">
-
-        <h3>🎙 Generated Audio</h3>
-
-        <div id="audioList"></div>
-
-    </div>
-    
-    <div class="card shadow mt-4">
-
-    <div class="card-body">
-
-        <h3>🎥 Generated Video</h3>
-
-        <div id="videoOutput"></div>
-
-    </div>
-
-</div>
-
-</div>
-    <!-- Logs -->
-
-    <div class="card shadow mt-5">
-
-        <div class="card-body">
-
-            <h3>
-
-                ⚙ Generation Status
-
-            </h3>
-
-            <div id="statusLog">
-
-                Ready...
-
-            </div>
+            </ul>
 
         </div>
 
