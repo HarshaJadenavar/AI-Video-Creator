@@ -1,0 +1,2000 @@
+/* ==========================================================================
+   AI VIDEO CREATOR — "Screening Room"
+   A private screening room / post-production suite skin for the Flask app.
+
+   This file works with the templates and main.js exactly as they are:
+   - Fonts are pulled in with @import below (no <link> change needed).
+   - Emoji in headings, buttons, the workflow list, the logo and injected
+     alerts are visually replaced with CSS-generated text and Bootstrap
+     Icons (font-size: 0 on the element + ::before / ::after). The original
+     text stays in the DOM, so screen readers still announce it; the
+     generated text uses the `content: "…" / ""` alt syntax so it is not
+     read twice in browsers that support it.
+   - Workflow progress, the "next step" button and the status log are all
+     driven by :has(), reading which buttons are disabled and what main.js
+     has injected into each output panel. No JS changes.
+
+   Sections
+     01  Tokens
+     02  Base (reset, grain, vignette, scrollbar, selection)
+     03  Layout
+     04  Components (navbar, hero, cards, panels, buttons, forms,
+                     status log, workflow, loading overlay, footer)
+     05  Bootstrap overrides (markup injected by main.js)
+     06  States (button sequence, workflow progress, live status log)
+     07  Motion
+     08  Responsive
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap");
+
+
+/* ==========================================================================
+   01  TOKENS
+   ========================================================================== */
+
+:root {
+    color-scheme: dark;
+
+    /* --- Palette ---------------------------------------------------------
+       Contrast (WCAG 2.x), measured on --surface #161512:
+         ivory      14.7 : 1   AAA
+         ivory-dim   7.4 : 1   AAA  (placeholders, secondary copy)
+         muted       5.0 : 1   AA   (labels, eyebrows, credits)
+         brass       6.5 : 1   AA   (as text)
+         ink on brass 6.9 : 1  AA   (primary CTA)
+         oxblood-text 6.6 : 1  AA   (error copy; raw oxblood is bars only)
+    */
+    --ink:            #0E0D0B;   /* base: an unlit cinema            */
+    --surface:        #161512;   /* lifted charcoal, warm            */
+    --inset:          #0A0908;   /* recessed panels                  */
+    --ivory:          #EDE6D8;   /* text                             */
+    --ivory-dim:      #ABA497;   /* placeholder / secondary text     */
+    --muted:          #8C857A;   /* warm grey                        */
+    --brass:          #B8955A;   /* aged brass / tungsten            */
+    --brass-hi:       #C9A66B;   /* brass, hover                     */
+    --oxblood:        #8E3B33;   /* error bar                        */
+    --oxblood-text:   #D08A7E;   /* error copy (AA on dark)          */
+
+    --hairline:        rgba(237, 230, 216, 0.10);
+    --hairline-strong: rgba(237, 230, 216, 0.18);
+    --hairline-bright: rgba(237, 230, 216, 0.34);
+    --brass-veil:      rgba(184, 149, 90, 0.08);
+    --brass-glass:     rgba(184, 149, 90, 0.30);
+
+    /* --- Typography ------------------------------------------------------ */
+    --font-display: "Instrument Serif", "Cormorant Garamond", Georgia, serif;
+    --font-ui:      "Hanken Grotesk", "Manrope", system-ui, sans-serif;
+    --font-mono:    "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+    /* Private-use glyphs fall through to Bootstrap Icons */
+    --font-ui-icons:   var(--font-ui), "bootstrap-icons";
+    --font-mono-icons: var(--font-mono), "bootstrap-icons";
+
+    /* Fluid type scale */
+    --fs-display: clamp(2.75rem, 1.6rem + 4.6vw, 5.75rem);
+    --fs-h1:      clamp(2rem, 1.55rem + 1.8vw, 3rem);
+    --fs-h2:      clamp(1.65rem, 1.4rem + 1vw, 2.25rem);
+    --fs-h3:      clamp(1.35rem, 1.2rem + 0.6vw, 1.75rem);
+    --fs-body:    clamp(0.95rem, 0.92rem + 0.15vw, 1.0625rem);
+    --fs-small:   0.8125rem;
+    --fs-mono:    0.75rem;
+    --fs-eyebrow: 0.6875rem;
+
+    --tracking-eyebrow: 0.2em;
+    --tracking-label:   0.18em;
+
+    /* --- Space ----------------------------------------------------------- */
+    --s-1: 0.25rem;
+    --s-2: 0.5rem;
+    --s-3: 0.75rem;
+    --s-4: 1rem;
+    --s-5: 1.5rem;
+    --s-6: 2rem;
+    --s-7: 3rem;
+    --s-8: 4.5rem;
+    --s-9: 7rem;
+    --pad:    clamp(1.25rem, 0.75rem + 1.8vw, 2.25rem);  /* card padding   */
+    --gutter: clamp(1rem, 0.5rem + 2vw, 2.5rem);         /* page gutter    */
+    --nav-h:  3.75rem;
+
+    /* --- Shape ----------------------------------------------------------- */
+    --radius:    0;
+    --radius-sm: 2px;
+    --rule:      1px solid var(--hairline);
+    --rule-strong: 1px solid var(--hairline-strong);
+
+    /* --- Motion ---------------------------------------------------------- */
+    --ease:    cubic-bezier(0.22, 1, 0.36, 1);
+    --dur-1:   300ms;
+    --dur-2:   600ms;
+    --dur-3:   900ms;
+    --stagger: 60ms;
+
+    /* --- Icons (data-URI SVG, fixed colours per state) -------------------- */
+    --svg-arrow-ink:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230E0D0B' stroke-width='1.3'%3E%3Cpath d='M1.5 8h12M9 3.5 13.5 8 9 12.5'/%3E%3C/svg%3E");
+    --svg-check-brass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23B8955A' stroke-width='1.3'%3E%3Cpath d='M2.5 8.5 6 12l7.5-8'/%3E%3C/svg%3E");
+    --svg-lock-ivory: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23EDE6D8' stroke-width='1.2'%3E%3Crect x='3.5' y='7' width='9' height='7'/%3E%3Cpath d='M5.5 7V5a2.5 2.5 0 0 1 5 0v2'/%3E%3C/svg%3E");
+    --svg-chevron:    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23EDE6D8' stroke-width='1.2'%3E%3Cpath d='M3.5 6 8 10.5 12.5 6'/%3E%3C/svg%3E");
+    --svg-grain:      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+    /* --- Bootstrap 5.3 variable hand-off --------------------------------
+       Bootstrap's own :root block loads first; same specificity, so these
+       win by source order. This is how we override without !important. */
+    --bs-body-bg:            var(--ink);
+    --bs-body-color:         var(--ivory);
+    --bs-body-font-family:   var(--font-ui);
+    --bs-body-font-size:     var(--fs-body);
+    --bs-body-font-weight:   400;
+    --bs-body-line-height:   1.6;
+    --bs-heading-color:      var(--ivory);
+    --bs-emphasis-color:     var(--ivory);
+    --bs-secondary-color:    var(--muted);
+    --bs-border-color:       var(--hairline);
+    --bs-border-radius:      var(--radius-sm);
+    --bs-border-radius-sm:   var(--radius-sm);
+    --bs-border-radius-lg:   var(--radius-sm);
+    --bs-box-shadow:         none;   /* neutralises .shadow (which is !important) */
+    --bs-box-shadow-sm:      none;   /* neutralises .shadow-sm */
+    --bs-box-shadow-lg:      none;
+    --bs-link-color:         var(--brass);
+    --bs-link-color-rgb:     184, 149, 90;
+    --bs-link-hover-color:   var(--brass-hi);
+    --bs-link-hover-color-rgb: 201, 166, 107;
+    --bs-focus-ring-color:   var(--brass-glass);
+}
+
+
+/* ==========================================================================
+   02  BASE
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    background: var(--ink);
+    scrollbar-color: #4A453D transparent;   /* Firefox */
+    scrollbar-width: thin;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    position: relative;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--ink);
+    color: var(--ivory);
+    font-family: var(--font-ui);
+    font-size: var(--fs-body);
+    font-weight: 400;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;                       /* never a horizontal scroll */
+}
+
+/* Film grain: sits over everything (including the overlay), never clickable */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    pointer-events: none;
+    background-image: var(--svg-grain);
+    background-size: 220px 220px;
+    opacity: 0.045;
+    mix-blend-mode: screen;
+}
+
+/* Vignette: darkens the page edges, painted behind content */
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(120% 90% at 50% 35%, transparent 55%, rgba(0, 0, 0, 0.55) 100%),
+        radial-gradient(60% 40% at 50% 0%, rgba(184, 149, 90, 0.035), transparent 70%);
+}
+
+body > main,
+body > footer {
+    position: relative;
+    z-index: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    font-weight: 400;
+    color: var(--ivory);
+}
+
+p {
+    margin: 0;
+}
+
+img,
+video {
+    display: block;
+    max-width: 100%;
+}
+
+/* Text selection in brass */
+::selection {
+    background: var(--brass-glass);
+    color: var(--ivory);
+}
+
+/* Scrollbar (WebKit / Blink) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3A3630;
+    border: 2px solid var(--ink);
+    border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5A544A;
+}
+
+
+/* ==========================================================================
+   03  LAYOUT
+   ========================================================================== */
+
+.dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(19rem, 3fr);
+    gap: var(--gutter);
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 0 var(--gutter) var(--s-8);
+    align-items: start;
+}
+
+.left-panel,
+.right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1rem, 0.6rem + 1vw, 1.5rem);
+    min-width: 0;
+}
+
+/* The controls column stays in view on wide screens */
+.right-panel {
+    padding-top: var(--s-9);
+}
+
+
+/* ==========================================================================
+   04  COMPONENTS
+   ========================================================================== */
+
+/* --- 4.1  Eyebrow (shared style for small tracked mono labels) ----------- */
+
+.card-section > h2::before,
+.control-card > h2::before,
+.welcome-card::before,
+.nav-right span {
+    font-family: var(--font-mono);
+    font-size: var(--fs-eyebrow);
+    font-weight: 500;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+
+/* --- 4.2  Navbar ---------------------------------------------------------- */
+
+.navbar-custom {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    height: var(--nav-h);
+    padding: 0 var(--gutter);
+    background: rgba(14, 13, 11, 0.86);
+    border-bottom: var(--rule);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    backdrop-filter: blur(14px) saturate(120%);
+}
+
+/* Wordmark: "🚀 AI Video Creator" → [AI] Video Creator */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-size: 0;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.logo::before {
+    content: "AI";
+    content: "AI" / "";
+    padding: 0.32rem 0.38rem 0.28rem;
+    border: 1px solid var(--brass-glass);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--brass);
+}
+
+.logo::after {
+    content: "Video Creator";
+    content: "Video Creator" / "";
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    letter-spacing: -0.005em;
+    color: var(--ivory);
+}
+
+/* "Powered by Gemini AI" → tiny mono label with a tungsten pilot light */
+.nav-right span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.625rem;
+    white-space: nowrap;
+}
+
+.nav-right span::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    background: var(--brass);
+    box-shadow: 0 0 0 3px var(--brass-veil);
+}
+
+
+/* --- 4.3  Welcome card → editorial hero ---------------------------------- */
+
+.welcome-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+    padding: var(--s-9) 0 var(--s-6);
+    background: none;
+    border: 0;
+    border-bottom: var(--rule);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.welcome-card::before {
+    content: "Private screening — Reel 01";
+    content: "Private screening — Reel 01" / "";
+}
+
+/* "🚀 AI Video Creator" → One prompt. A finished *film.* */
+.welcome-card h1 {
+    max-width: 14ch;
+    font-size: 0;
+    line-height: 0;
+}
+
+.welcome-card h1::before,
+.welcome-card h1::after {
+    font-family: var(--font-display);
+    font-size: var(--fs-display);
+    font-weight: 400;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--ivory);
+}
+
+.welcome-card h1::before {
+    content: "One prompt. A finished ";
+    content: "One prompt. A finished " / "";
+}
+
+.welcome-card h1::after {
+    content: "film.";
+    content: "film." / "";
+    font-style: italic;
+    color: var(--brass-hi);
+}
+
+.welcome-card p {
+    max-width: 46ch;
+    font-size: var(--fs-body);
+    font-weight: 300;
+    color: var(--ivory-dim);
+}
+
+
+/* --- 4.4  Section and control cards --------------------------------------- */
+
+.card-section,
+.control-card {
+    position: relative;
+    padding: var(--pad);
+    background: var(--surface);
+    border: var(--rule);
+    border-radius: var(--radius);
+    box-shadow: none;
+}
+
+/* Section headings: emoji title → numbered eyebrow + serif title */
+.card-section > h2 {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    margin: 0 0 var(--s-5);
+    font-size: 0;
+    line-height: 0;
+}
+
+.card-section > h2::after {
+    font-family: var(--font-display);
+    font-size: var(--fs-h2);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--ivory);
+}
+
+.card-section:has(#storyOutput) > h2::before   { content: "01 — Story";       content: "01 — Story" / ""; }
+.card-section:has(#storyOutput) > h2::after    { content: "The script";       content: "The script" / ""; }
+.card-section:has(#storyboard) > h2::before    { content: "02 — Scenes";      content: "02 — Scenes" / ""; }
+.card-section:has(#storyboard) > h2::after     { content: "Storyboard";       content: "Storyboard" / ""; }
+.card-section:has(#imageGallery) > h2::before  { content: "03 — Images";      content: "03 — Images" / ""; }
+.card-section:has(#imageGallery) > h2::after   { content: "Frames";           content: "Frames" / ""; }
+.card-section:has(#audioList) > h2::before     { content: "04 — Voice";       content: "04 — Voice" / ""; }
+.card-section:has(#audioList) > h2::after      { content: "Narration";        content: "Narration" / ""; }
+.card-section:has(#videoOutput) > h2::before   { content: "05 — Video";       content: "05 — Video" / ""; }
+.card-section:has(#videoOutput) > h2::after    { content: "The final cut";    content: "The final cut" / ""; }
+
+/* Control-card headings keep their text, gain an eyebrow */
+.control-card > h2 {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    margin: 0 0 var(--s-4);
+    font-family: var(--font-display);
+    font-size: var(--fs-h3);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.005em;
+}
+
+.control-card:has(#project_name) > h2::before { content: "Brief";      content: "Brief" / ""; }
+.control-card:has(.action-btn) > h2::before   { content: "Production"; content: "Production" / ""; }
+.control-card:has(#statusLog) > h2::before    { content: "Edit-suite log"; content: "Edit-suite log" / ""; }
+.control-card:has(.workflow) > h2::before     { content: "Sequence";   content: "Sequence" / ""; }
+
+
+/* --- 4.5  Recessed content panels and empty states ------------------------ */
+
+.content-box,
+.status-box {
+    position: relative;
+    min-height: 11rem;
+    padding: var(--s-5);
+    overflow: auto;
+    background: var(--inset);
+    border: var(--rule);
+    border-radius: var(--radius);
+    box-shadow:
+        inset 0 1px 0 rgba(0, 0, 0, 0.7),
+        inset 0 0 48px rgba(0, 0, 0, 0.45);
+}
+
+/* Empty panel = a title card waiting for its film */
+.content-box:has(> .placeholder:only-child) {
+    display: grid;
+    place-items: center;
+    min-height: 13rem;
+}
+
+.placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-3);
+    max-width: 30ch;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    font-style: italic;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--ivory-dim);
+}
+
+/* A small mono slate line above each placeholder */
+.placeholder::before {
+    content: "— Awaiting —";
+    content: "— Awaiting —" / "";
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-style: normal;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* The gallery has no placeholder in the template, so draw one when empty */
+.image-gallery:not(:has(*))::before {
+    content: "Frames will be developed here…";
+    grid-column: 1 / -1;
+    display: grid;
+    place-items: center;
+    min-height: 13rem;
+    padding: var(--s-5);
+    background: var(--inset);
+    border: var(--rule);
+    box-shadow:
+        inset 0 1px 0 rgba(0, 0, 0, 0.7),
+        inset 0 0 48px rgba(0, 0, 0, 0.45);
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    font-style: italic;
+    color: var(--ivory-dim);
+    text-align: center;
+}
+
+
+/* --- 4.6  Generate buttons: one system, read as a sequence ---------------- */
+/*
+   Each button: [01]  [icon] Label ............ [state glyph]
+   The colour states (next / done / available / disabled) are set in
+   section 06 through the custom properties below.
+*/
+
+.control-card:has(.action-btn) {
+    counter-reset: step;
+}
+
+.action-btn {
+    /* state hooks */
+    --btn-bg:      transparent;
+    --btn-fg:      var(--ivory);
+    --btn-num:     var(--muted);
+    --btn-border:  var(--hairline-strong);
+    --btn-sweep:   rgba(237, 230, 216, 0.06);
+    --btn-glyph:   none;
+
+    counter-increment: step;
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.25rem 1fr;
+    align-items: center;
+    width: 100%;
+    min-height: 3.25rem;
+    margin-top: var(--s-2);
+    padding: 0 2.75rem 0 1rem;
+    border: 1px solid var(--btn-border);
+    border-radius: var(--radius);
+    color: var(--btn-fg);
+    font-size: 0;                     /* hides the emoji label text */
+    text-align: left;
+    cursor: pointer;
+    background:
+        var(--btn-glyph) no-repeat right 1rem center / 14px 14px,
+        linear-gradient(var(--btn-sweep), var(--btn-sweep)) no-repeat left center / 0% 100%,
+        var(--btn-bg);
+    transition:
+        transform var(--dur-1) var(--ease),
+        border-color var(--dur-1) var(--ease),
+        background-size var(--dur-2) var(--ease),
+        color var(--dur-1) var(--ease),
+        opacity var(--dur-1) var(--ease);
+}
+
+.control-card > h2 + .action-btn {
+    margin-top: 0;
+}
+
+/* Step number */
+.action-btn::before {
+    content: counter(step, decimal-leading-zero);
+    content: counter(step, decimal-leading-zero) / "";
+    font-family: var(--font-mono);
+    font-size: var(--fs-mono);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--btn-num);
+}
+
+/* Icon + label (icon is a Bootstrap Icons glyph via font fallback) */
+.action-btn::after {
+    font-family: var(--font-ui-icons);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#generateBtn::after      { content: "\F4C8\2003Write story";        content: "\F4C8\2003Write story" / ""; }
+#generateSceneBtn::after { content: "\F460\2003Break into scenes";  content: "\F460\2003Break into scenes" / ""; }
+#generateImageBtn::after { content: "\F42B\2003Render frames";      content: "\F42B\2003Render frames" / ""; }
+#generateVoiceBtn::after { content: "\F490\2003Record narration";   content: "\F490\2003Record narration" / ""; }
+#generateVideoBtn::after { content: "\F21B\2003Final cut";          content: "\F21B\2003Final cut" / ""; }
+
+.action-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background-size: 14px 14px, 100% 100%, auto;
+}
+
+.action-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+
+/* --- 4.7  Form fields ----------------------------------------------------- */
+
+.control-card label {
+    display: block;
+    margin: var(--s-5) 0 var(--s-1);
+    font-family: var(--font-ui);
+    font-size: var(--fs-eyebrow);
+    font-weight: 500;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color var(--dur-1) var(--ease);
+}
+
+.control-card > h2 + label {
+    margin-top: var(--s-2);
+}
+
+/* Label lights up while its field is focused */
+.control-card label:has(+ :focus) {
+    color: var(--brass);
+}
+
+.control-card input,
+.control-card textarea,
+.control-card select {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0.55rem 0 0.6rem;
+    background-color: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--hairline-strong);
+    border-radius: 0;
+    outline: none;
+    box-shadow: 0 1px 0 0 transparent;
+    color: var(--ivory);
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    transition:
+        border-color var(--dur-1) var(--ease),
+        box-shadow var(--dur-1) var(--ease);
+}
+
+.control-card input::placeholder,
+.control-card textarea::placeholder {
+    color: var(--muted);
+    opacity: 1;
+    font-style: italic;
+}
+
+.control-card input:hover,
+.control-card textarea:hover,
+.control-card select:hover {
+    border-bottom-color: var(--hairline-bright);
+}
+
+.control-card input:focus,
+.control-card textarea:focus,
+.control-card select:focus {
+    border-bottom-color: var(--brass);
+    box-shadow: 0 1px 0 0 var(--brass);
+}
+
+/* Select: custom ivory chevron */
+.control-card select {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 1.75rem;
+    background-image: var(--svg-chevron);
+    background-repeat: no-repeat;
+    background-position: right 0.15rem center;
+    background-size: 14px 14px;
+    cursor: pointer;
+}
+
+.control-card select option {
+    background: var(--surface);
+    color: var(--ivory);
+}
+
+/* Prompt textarea: typed like a script on ruled paper */
+.control-card textarea {
+    --line: 1.75rem;
+    min-height: calc(var(--line) * 6 + 0.5rem);
+    padding: 0.25rem 0 0.25rem 1rem;
+    resize: vertical;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: var(--line);
+    background-image:
+        linear-gradient(90deg, transparent calc(0.5rem - 1px), rgba(142, 59, 51, 0.45) calc(0.5rem - 1px), rgba(142, 59, 51, 0.45) 0.5rem, transparent 0.5rem),
+        repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(var(--line) - 1px),
+            rgba(237, 230, 216, 0.06) calc(var(--line) - 1px),
+            rgba(237, 230, 216, 0.06) var(--line)
+        );
+    background-position: 0 0, 0 0.25rem;
+    background-attachment: local;
+}
+
+
+/* --- 4.8  Status log (#statusLog) ----------------------------------------- */
+/*
+   main.js never writes to this box, so the log is composed in CSS from
+   the page state (section 06). The static "✅ Ready…" text is hidden.
+   ::before = history (muted), ::after = newest line (highlighted).
+*/
+
+.status-box {
+    --log0: "\F309 Session open · reel loaded\A";
+    --now:  "\F231  Awaiting brief → 01 Write story";
+    --now-color:  var(--ivory);
+    --now-accent: var(--brass);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 9.5rem;
+    max-height: 16rem;
+    padding: var(--s-4);
+    font-size: 0;                     /* hides the static emoji line */
+    overflow-anchor: auto;
+}
+
+.status-box::before,
+.status-box::after {
+    font-family: var(--font-mono-icons);
+    font-size: var(--fs-mono);
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+.status-box::before {
+    content: var(--log0) var(--log1, "") var(--log2, "") var(--log3, "") var(--log4, "") var(--log5, "");
+    color: var(--muted);
+}
+
+.status-box::after {
+    content: var(--now);
+    margin: var(--s-1) calc(var(--s-4) * -1) calc(var(--s-4) * -1);
+    padding: 0.45rem var(--s-4) 0.5rem calc(var(--s-4) - 2px);
+    border-left: 2px solid var(--now-accent);
+    background: var(--brass-veil);
+    color: var(--now-color);
+}
+
+
+/* --- 4.9  Workflow → vertical timeline ------------------------------------ */
+
+.workflow {
+    counter-reset: wf;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workflow li {
+    /* state hooks (section 06) */
+    --node-bg:     var(--surface);
+    --node-fg:     var(--muted);
+    --node-border: var(--hairline-strong);
+    --node-style:  dashed;
+    --label:       var(--muted);
+    --rail-t:      var(--hairline-strong);
+    --rail-b:      var(--hairline-strong);
+
+    counter-increment: wf;
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin: 0;
+    padding: 0 0 0 2.75rem;
+    background:
+        linear-gradient(var(--rail-t), var(--rail-t)) no-repeat calc(0.875rem - 0.5px) 0 / 1px 50%,
+        linear-gradient(var(--rail-b), var(--rail-b)) no-repeat calc(0.875rem - 0.5px) 100% / 1px 50%;
+    border-radius: 0;
+    font-size: 0;                     /* hides the keycap emoji */
+}
+
+.workflow li:first-child { --rail-t: transparent; }
+.workflow li:last-child  { --rail-b: transparent; }
+
+/* Node */
+.workflow li::before {
+    content: counter(wf, decimal-leading-zero);
+    content: counter(wf, decimal-leading-zero) / "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    transform: translateY(-50%);
+    background: var(--node-bg);
+    border: 1px var(--node-style) var(--node-border);
+    border-radius: var(--radius-sm);
+    color: var(--node-fg);
+    font-family: var(--font-mono-icons);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+/* Label */
+.workflow li::after {
+    font-family: var(--font-ui);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--label);
+    transition: color var(--dur-1) var(--ease);
+}
+
+.workflow li:nth-child(1)::after { content: "Write story";       content: "Write story" / ""; }
+.workflow li:nth-child(2)::after { content: "Break into scenes"; content: "Break into scenes" / ""; }
+.workflow li:nth-child(3)::after { content: "Render frames";     content: "Render frames" / ""; }
+.workflow li:nth-child(4)::after { content: "Record narration";  content: "Record narration" / ""; }
+.workflow li:nth-child(5)::after { content: "Final cut";         content: "Final cut" / ""; }
+
+
+/* --- 4.10  Loading overlay ------------------------------------------------ */
+/* Hidden by default. Shown when anything sets style.display = "flex". */
+
+#loadingOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-4);
+    padding: var(--gutter);
+    background:
+        radial-gradient(70% 60% at 50% 45%, rgba(184, 149, 90, 0.05), transparent 70%),
+        rgba(10, 9, 8, 0.97);
+    text-align: center;
+}
+
+/* Film-leader countdown: crosshair, sweeping arm, 3-2-1 */
+.loader {
+    position: relative;
+    width: 9rem;
+    height: 9rem;
+    margin-bottom: var(--s-5);
+    border: 1px solid var(--hairline-strong);
+    border-radius: 50%;
+    background:
+        linear-gradient(var(--hairline), var(--hairline)) center / 100% 1px no-repeat,
+        linear-gradient(var(--hairline), var(--hairline)) center / 1px 100% no-repeat,
+        conic-gradient(from 0deg, rgba(184, 149, 90, 0.18) var(--sweep), transparent 0);
+}
+
+/* thin rotating brass arc */
+.loader::before {
+    content: "";
+    position: absolute;
+    inset: 0.6rem;
+    border: 1px solid transparent;
+    border-top-color: var(--brass);
+    border-radius: 50%;
+}
+
+/* countdown number */
+.loader::after {
+    content: "3";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-family: var(--font-display);
+    font-size: 3.5rem;
+    line-height: 1;
+    color: var(--ivory);
+}
+
+#loadingOverlay h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--fs-h1);
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--ivory);
+}
+
+#loadingOverlay p {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-mono);
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+
+/* --- 4.11  Footer → end credits ------------------------------------------- */
+
+footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-3);
+    margin: 0;
+    padding: var(--s-7) var(--gutter) var(--s-6);
+    border-top: var(--rule);
+    text-align: center;
+}
+
+footer::before {
+    content: "Fin.";
+    content: "Fin." / "";
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-style: italic;
+    line-height: 1;
+    color: var(--ivory-dim);
+}
+
+footer p {
+    max-width: 60ch;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 2;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+
+/* ==========================================================================
+   05  BOOTSTRAP OVERRIDES — markup injected by main.js
+   Scoped to the output panels so Bootstrap stays untouched elsewhere.
+   ========================================================================== */
+
+/* --- 5.1  Alerts → hairline strips with a left accent bar ----------------- */
+
+.left-panel .alert {
+    --bs-alert-bg:            var(--brass-veil);
+    --bs-alert-color:         var(--ivory);
+    --bs-alert-border-color:  var(--hairline);
+    --bs-alert-border-radius: 0;
+    --bs-alert-padding-x:     var(--s-4);
+    --bs-alert-padding-y:     0.85rem;
+    --bs-alert-margin-bottom: 0;
+
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    border-left: 2px solid var(--brass);
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    overflow: hidden;
+}
+
+/* In-progress: emoji message replaced per panel, with an indeterminate bar */
+.left-panel .alert-info {
+    font-size: 0;
+}
+
+.left-panel .alert-info br {
+    display: none;
+}
+
+.left-panel .alert-info::before {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    background: var(--brass);
+    border-radius: 50%;
+}
+
+.left-panel .alert-info::after {
+    font-family: var(--font-mono);
+    font-size: var(--fs-small);
+    color: var(--ivory);
+    /* travelling brass progress marker along the bottom edge */
+    position: static;
+}
+
+.left-panel .alert-info {
+    background-image: linear-gradient(var(--brass), var(--brass));
+    background-repeat: no-repeat;
+    background-size: 30% 1px;
+    background-position: -30% 100%;
+}
+
+#storyOutput  .alert-info::after { content: "01 · Writing the story…";        content: "01 · Writing the story…" / ""; }
+#storyboard   .alert-info::after { content: "02 · Breaking into scenes…";     content: "02 · Breaking into scenes…" / ""; }
+#imageGallery .alert-info::after { content: "03 · Rendering frames — this can take a minute…"; content: "03 · Rendering frames — this can take a minute…" / ""; }
+#audioList    .alert-info::after { content: "04 · Recording narration…";     content: "04 · Recording narration…" / ""; }
+#videoOutput  .alert-info::after { content: "05 · Assembling the final cut…"; content: "05 · Assembling the final cut…" / ""; }
+
+/* Errors: oxblood bar, readable oxblood-tint copy */
+.left-panel .alert-danger {
+    --bs-alert-bg:    rgba(142, 59, 51, 0.10);
+    --bs-alert-color: var(--oxblood-text);
+    border-left-color: var(--oxblood);
+}
+
+.left-panel .alert-danger::before {
+    content: "\F659";
+    content: "\F659" / "";
+    flex: none;
+    font-family: "bootstrap-icons";
+    font-size: 0.75rem;
+    color: var(--oxblood-text);
+}
+
+.image-gallery > .alert {
+    grid-column: 1 / -1;
+}
+
+
+/* --- 5.2  Generated story ------------------------------------------------- */
+
+#storyOutput > .card {
+    --bs-card-bg: transparent;
+    --bs-card-border-width: 0;
+    --bs-card-border-radius: 0;
+    --bs-card-color: var(--ivory);
+}
+
+#storyOutput > .card > .card-body {
+    padding: var(--s-2) clamp(0rem, 2vw, var(--s-4));
+}
+
+/* The panel heading already says "The script" */
+#storyOutput .card-body > h4 {
+    display: none;
+}
+
+#storyOutput .card-body > p {
+    max-width: 68ch;
+    /* main.js sets pre-wrap inline, which also keeps the template-literal
+       indentation; pre-line keeps paragraph breaks but drops the indent.
+       !important is the only way past an inline style. */
+    white-space: pre-line !important;
+    margin-block: -1.8em;             /* trims the blank first/last line */
+    font-size: 1.0625rem;
+    font-weight: 300;
+    line-height: 1.8;
+    color: rgba(237, 230, 216, 0.92);
+}
+
+#storyOutput .card-body > p::first-line {
+    font-weight: 400;
+    color: var(--ivory);
+}
+
+
+/* --- 5.3  Storyboard → film slates ---------------------------------------- */
+
+#storyboard {
+    counter-reset: scene;
+}
+
+#storyboard > .card {
+    --bs-card-bg: transparent;
+    --bs-card-border-width: 0;
+    --bs-card-border-radius: 0;
+    --bs-card-color: var(--ivory);
+
+    counter-increment: scene;
+    border-top: var(--rule);
+    border-left: 2px solid transparent;
+    transition:
+        border-color var(--dur-2) var(--ease),
+        background-color var(--dur-2) var(--ease);
+}
+
+#storyboard > .card:first-child {
+    border-top: 0;
+}
+
+#storyboard > .card:last-child {
+    margin-bottom: 0;
+}
+
+#storyboard > .card:hover {
+    border-left-color: var(--brass);
+    background-color: rgba(237, 230, 216, 0.02);
+}
+
+#storyboard .card-body {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+        "slate time"
+        "title title"
+        "desc  desc";
+    gap: var(--s-2) var(--s-4);
+    align-items: center;
+    padding: var(--s-4) var(--s-4) var(--s-4) var(--s-5);
+}
+
+/* "🎬 Scene 3" → SCENE 03 + clapper stripes */
+#storyboard .card-body > h4 {
+    grid-area: slate;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin: 0;
+    font-size: 0;
+    line-height: 1;
+}
+
+#storyboard .card-body > h4::before {
+    content: "Scene " counter(scene, decimal-leading-zero);
+    content: "Scene " counter(scene, decimal-leading-zero) / "";
+    font-family: var(--font-mono);
+    font-size: var(--fs-eyebrow);
+    font-weight: 500;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--brass);
+}
+
+#storyboard .card-body > h4::after {
+    content: "";
+    width: 2.5rem;
+    height: 0.4rem;
+    background: repeating-linear-gradient(
+        -60deg,
+        var(--hairline-bright) 0 4px,
+        transparent 4px 8px
+    );
+    opacity: 0.6;
+}
+
+#storyboard .card-body > h5 {
+    grid-area: title;
+    margin: var(--s-1) 0 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 1.2rem + 0.6vw, 1.75rem);
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--ivory);
+}
+
+#storyboard .card-body > p {
+    grid-area: desc;
+    max-width: 70ch;
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 300;
+    line-height: 1.7;
+    color: var(--ivory-dim);
+}
+
+/* Duration as a timecode pill. .bg-primary is !important in Bootstrap, so
+   we zero its opacity variable instead of fighting the colour. */
+#storyboard .badge {
+    --bs-bg-opacity: 0;
+    --bs-badge-padding-x: 0.55rem;
+    --bs-badge-padding-y: 0.35rem;
+    --bs-badge-font-size: 0.6875rem;
+    --bs-badge-font-weight: 500;
+    --bs-badge-color: var(--brass);
+    --bs-badge-border-radius: var(--radius-sm);
+
+    grid-area: time;
+    justify-self: end;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--brass-glass);
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+
+#storyboard .badge::before {
+    content: "\F293";
+    content: "\F293" / "";
+    font-family: "bootstrap-icons";
+    font-size: 0.625rem;
+    opacity: 0.8;
+}
+
+
+/* --- 5.4  Image gallery → cinematic frames -------------------------------- */
+
+.image-gallery {
+    counter-reset: frame;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+    column-gap: var(--s-5);
+    row-gap: 0;                       /* .mb-4 on each item gives the rows their gap */
+}
+
+/* Neutralise .col-md-4's 33% width inside the grid cell */
+.image-gallery > [class*="col-"] {
+    counter-increment: frame;
+    width: auto;
+    max-width: none;
+    flex: none;
+    padding: 0;
+}
+
+.image-gallery .card {
+    --bs-card-bg: var(--inset);
+    --bs-card-border-color: var(--hairline);
+    --bs-card-border-radius: 0;
+    --bs-card-inner-border-radius: 0;
+    --bs-card-color: var(--ivory);
+
+    position: relative;
+    overflow: hidden;
+    container-type: inline-size;
+    transition: border-color var(--dur-2) var(--ease);
+}
+
+.image-gallery .card-img-top {
+    /* main.js inlines height:300px; a 16:9 frame needs height:auto, and an
+       inline style can only be beaten with !important. */
+    height: auto !important;
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    object-fit: cover;
+    border-radius: 0;
+    transform: scale(1);
+    transition: transform var(--dur-3) var(--ease);
+}
+
+/* Thin ivory inner border floating over the image */
+.image-gallery .card::after {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+    right: 0.6rem;
+    height: calc(100cqw * 9 / 16 - 1.2rem);
+    border: 1px solid rgba(237, 230, 216, 0.28);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.image-gallery .card:hover {
+    border-color: var(--hairline-strong);
+}
+
+.image-gallery .card:hover .card-img-top {
+    transform: scale(1.04);
+}
+
+.image-gallery .card-body {
+    position: relative;
+    z-index: 1;                       /* sits above the scaled image */
+    padding: 0.7rem var(--s-3);
+    background: var(--inset);
+    border-top: var(--rule);
+}
+
+.image-gallery .card-body h6 {
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.image-gallery .card-body h6::before {
+    content: "F" counter(frame, decimal-leading-zero) "\2002";
+    content: "F" counter(frame, decimal-leading-zero) "\2002" / "";
+    color: var(--brass);
+}
+
+
+/* --- 5.5  Narration → framed takes ---------------------------------------- */
+
+#audioList {
+    counter-reset: take;
+}
+
+#audioList > .card {
+    --bs-card-bg: transparent;
+    --bs-card-border-width: 0;
+    --bs-card-border-radius: 0;
+    --bs-card-color: var(--ivory);
+
+    counter-increment: take;
+    border-bottom: var(--rule);
+}
+
+#audioList > .card:last-child {
+    margin-bottom: 0;
+    border-bottom: 0;
+}
+
+#audioList .card-body {
+    display: grid;
+    grid-template-columns: minmax(8rem, 12rem) 1fr;
+    gap: var(--s-2) var(--s-5);
+    align-items: center;
+    padding: var(--s-3) 0;
+}
+
+#audioList .card-body > h5 {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#audioList .card-body > h5::before {
+    content: "Take " counter(take, decimal-leading-zero);
+    content: "Take " counter(take, decimal-leading-zero) / "";
+    font-weight: 500;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--brass);
+}
+
+audio {
+    display: block;
+    width: 100%;
+    height: 2.5rem;
+    color-scheme: dark;
+    accent-color: var(--brass);
+    border-radius: 0;
+}
+
+/* Chromium/WebKit: darken and square the native control strip */
+audio::-webkit-media-controls-panel {
+    background-color: #1B1915;
+    border-radius: 0;
+}
+
+audio::-webkit-media-controls-enclosure {
+    border-radius: 0;
+    background-color: #1B1915;
+}
+
+
+/* --- 5.6  Final cut → letterboxed screen ---------------------------------- */
+
+#videoOutput:has(video) {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    background: #000;
+}
+
+#videoOutput:has(video)::before {
+    content: "Final cut";
+    content: "Final cut" / "";
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-5);
+    font-family: var(--font-mono);
+    font-size: var(--fs-eyebrow);
+    font-weight: 500;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--brass);
+    border-bottom: 1px solid rgba(237, 230, 216, 0.06);
+}
+
+#videoOutput br {
+    display: none;
+}
+
+#videoOutput video {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    color-scheme: dark;
+    accent-color: var(--brass);
+}
+
+/* Download link (.btn.btn-success) → quiet outlined control */
+#videoOutput .btn {
+    --bs-btn-padding-x: var(--s-5);
+    --bs-btn-padding-y: 0.85rem;
+    --bs-btn-bg: transparent;
+    --bs-btn-color: var(--ivory);
+    --bs-btn-border-color: transparent;
+    --bs-btn-border-radius: 0;
+    --bs-btn-hover-bg: var(--brass);
+    --bs-btn-hover-color: var(--ink);
+    --bs-btn-hover-border-color: var(--brass);
+    --bs-btn-active-bg: var(--brass-hi);
+    --bs-btn-active-color: var(--ink);
+    --bs-btn-active-border-color: var(--brass-hi);
+    --bs-btn-focus-shadow-rgb: 184, 149, 90;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(237, 230, 216, 0.06);
+    font-size: 0;
+    text-align: left;
+    transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+#videoOutput .btn::before {
+    content: "Download master · MP4";
+    content: "Download master · MP4" / "";
+    font-family: var(--font-mono);
+    font-size: var(--fs-eyebrow);
+    font-weight: 500;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+}
+
+#videoOutput .btn::after {
+    content: "\F30A";
+    content: "\F30A" / "";
+    font-family: "bootstrap-icons";
+    font-size: 0.9375rem;
+}
+
+
+/* ==========================================================================
+   06  STATES
+   ========================================================================== */
+
+/* --- 6.1  Focus ----------------------------------------------------------- */
+
+:focus-visible {
+    outline: 1px solid var(--brass);
+    outline-offset: 3px;
+}
+
+.action-btn:focus-visible,
+#videoOutput .btn:focus-visible {
+    outline: 1px solid var(--brass);
+    outline-offset: 3px;
+    box-shadow: none;
+}
+
+.control-card input:focus-visible,
+.control-card textarea:focus-visible,
+.control-card select:focus-visible {
+    outline: none;                    /* the brass underline is the ring */
+}
+
+
+/* --- 6.2  Button sequence ------------------------------------------------- */
+/*
+   next in line : enabled, and the following button is still disabled
+   done         : enabled, and a later button is enabled too
+   locked       : disabled — the workflow, kept obvious
+*/
+
+/* Next in line — solid brass, dark text, arrow, fill-sweep on hover */
+.action-btn.primary,                                         /* fallback without :has() */
+.action-btn:not(:disabled):has(+ .action-btn:disabled),
+#generateVideoBtn:not(:disabled) {
+    --btn-bg:     var(--brass);
+    --btn-fg:     var(--ink);
+    --btn-num:    rgba(14, 13, 11, 0.62);
+    --btn-border: var(--brass);
+    --btn-sweep:  var(--brass-hi);
+    --btn-glyph:  var(--svg-arrow-ink);
+}
+
+/* Done / re-runnable — ivory hairline outline with a brass check */
+.action-btn:not(:disabled):has(~ .action-btn:not(:disabled)),
+.dashboard:has(#videoOutput video) #generateVideoBtn:not(:disabled) {
+    --btn-bg:     transparent;
+    --btn-fg:     var(--ivory);
+    --btn-num:    var(--muted);
+    --btn-border: var(--hairline-strong);
+    --btn-sweep:  rgba(237, 230, 216, 0.06);
+    --btn-glyph:  var(--svg-check-brass);
+}
+
+.action-btn:not(:disabled):has(~ .action-btn:not(:disabled)):hover,
+.dashboard:has(#videoOutput video) #generateVideoBtn:not(:disabled):hover {
+    --btn-border: var(--hairline-bright);
+}
+
+/* Locked */
+.action-btn:disabled {
+    --btn-bg:     transparent;
+    --btn-fg:     var(--ivory);
+    --btn-num:    var(--ivory);
+    --btn-border: var(--hairline-bright);
+    --btn-glyph:  var(--svg-lock-ivory);
+
+    border-style: dashed;
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* Running — the panel for that step is showing its in-progress alert */
+.dashboard:has(#storyOutput > .alert-info)   #generateBtn,
+.dashboard:has(#storyboard > .alert-info)    #generateSceneBtn,
+.dashboard:has(#imageGallery > .alert-info)  #generateImageBtn,
+.dashboard:has(#audioList > .alert-info)     #generateVoiceBtn,
+.dashboard:has(#videoOutput > .alert-info)   #generateVideoBtn {
+    --btn-glyph: none;
+    pointer-events: none;
+}
+
+.dashboard:has(#storyOutput > .alert-info)   #generateBtn::after      { content: "\F41F\2003Writing…";          content: "\F41F\2003Writing…" / ""; }
+.dashboard:has(#storyboard > .alert-info)    #generateSceneBtn::after { content: "\F41F\2003Cutting scenes…";   content: "\F41F\2003Cutting scenes…" / ""; }
+.dashboard:has(#imageGallery > .alert-info)  #generateImageBtn::after { content: "\F41F\2003Rendering…";        content: "\F41F\2003Rendering…" / ""; }
+.dashboard:has(#audioList > .alert-info)     #generateVoiceBtn::after { content: "\F41F\2003Recording…";        content: "\F41F\2003Recording…" / ""; }
+.dashboard:has(#videoOutput > .alert-info)   #generateVideoBtn::after { content: "\F41F\2003Assembling…";       content: "\F41F\2003Assembling…" / ""; }
+
+
+/* --- 6.3  Workflow progress (mirrors the buttons) ------------------------- */
+
+/* Done: brass outline node with a check, ivory label */
+.dashboard:has(#generateSceneBtn:not(:disabled)) .workflow li:nth-child(1),
+.dashboard:has(#generateImageBtn:not(:disabled)) .workflow li:nth-child(2),
+.dashboard:has(#generateVoiceBtn:not(:disabled)) .workflow li:nth-child(3),
+.dashboard:has(#generateVideoBtn:not(:disabled)) .workflow li:nth-child(4),
+.dashboard:has(#generateVideoBtn:not(:disabled)):has(#videoOutput video) .workflow li:nth-child(5) {
+    --node-bg:     var(--surface);
+    --node-fg:     var(--brass);
+    --node-border: var(--brass);
+    --node-style:  solid;
+    --label:       var(--ivory);
+    --rail-b:      var(--brass);
+}
+
+.dashboard:has(#generateSceneBtn:not(:disabled)) .workflow li:nth-child(1)::before,
+.dashboard:has(#generateImageBtn:not(:disabled)) .workflow li:nth-child(2)::before,
+.dashboard:has(#generateVoiceBtn:not(:disabled)) .workflow li:nth-child(3)::before,
+.dashboard:has(#generateVideoBtn:not(:disabled)) .workflow li:nth-child(4)::before,
+.dashboard:has(#generateVideoBtn:not(:disabled)):has(#videoOutput video) .workflow li:nth-child(5)::before {
+    content: "\F272";
+    content: "\F272" / "";
+    font-size: 0.8125rem;
+}
+
+/* The rail segment above a node turns brass once the previous step is done */
+.dashboard:has(#generateSceneBtn:not(:disabled)) .workflow li:nth-child(2),
+.dashboard:has(#generateImageBtn:not(:disabled)) .workflow li:nth-child(3),
+.dashboard:has(#generateVoiceBtn:not(:disabled)) .workflow li:nth-child(4),
+.dashboard:has(#generateVideoBtn:not(:disabled)) .workflow li:nth-child(5) {
+    --rail-t: var(--brass);
+}
+
+.workflow li:last-child {
+    --rail-b: transparent;
+}
+
+/* Current: solid brass node */
+.dashboard:has(#generateSceneBtn:disabled) .workflow li:nth-child(1),
+.dashboard:has(#generateSceneBtn:not(:disabled)):has(#generateImageBtn:disabled) .workflow li:nth-child(2),
+.dashboard:has(#generateImageBtn:not(:disabled)):has(#generateVoiceBtn:disabled) .workflow li:nth-child(3),
+.dashboard:has(#generateVoiceBtn:not(:disabled)):has(#generateVideoBtn:disabled) .workflow li:nth-child(4),
+.dashboard:has(#generateVideoBtn:not(:disabled)):not(:has(#videoOutput video)) .workflow li:nth-child(5) {
+    --node-bg:     var(--brass);
+    --node-fg:     var(--ink);
+    --node-border: var(--brass);
+    --node-style:  solid;
+    --label:       var(--ivory);
+}
+
+/* Running: the current node breathes */
+.dashboard:has(#storyOutput > .alert-info)  .workflow li:nth-child(1)::before,
+.dashboard:has(#storyboard > .alert-info)   .workflow li:nth-child(2)::before,
+.dashboard:has(#imageGallery > .alert-info) .workflow li:nth-child(3)::before,
+.dashboard:has(#audioList > .alert-info)    .workflow li:nth-child(4)::before,
+.dashboard:has(#videoOutput > .alert-info)  .workflow li:nth-child(5)::before {
+    animation: node-breathe 1.6s var(--ease) infinite;
+}
+
+
+/* --- 6.4  Live status log ------------------------------------------------- */
+/*
+   Each step contributes a history line once its output exists, and
+   overrides --now. Rules are in step order, so the latest step wins.
+*/
+
+/* 01 Story */
+.dashboard:has(#storyOutput > .card) #statusLog {
+    --log1: "\F272 01  Story locked\A";
+    --now:  "\F231  Ready → 02 Break into scenes";
+}
+.dashboard:has(#storyOutput > .alert-info) #statusLog {
+    --now: "\F287  01  Writing the story…";
+}
+.dashboard:has(#storyOutput > .alert-danger) #statusLog {
+    --now: "\F659  01  Story failed · check the brief and retry";
+    --now-color: var(--oxblood-text);
+    --now-accent: var(--oxblood);
+}
+
+/* 02 Scenes */
+.dashboard:has(#storyboard > .card) #statusLog {
+    --log2: "\F272 02  Scenes locked\A";
+    --now:  "\F231  Ready → 03 Render frames";
+}
+.dashboard:has(#storyboard > .alert-info) #statusLog {
+    --now: "\F287  02  Breaking into scenes…";
+}
+.dashboard:has(#storyboard > .alert-danger) #statusLog {
+    --now: "\F659  02  Scene split failed · retry";
+    --now-color: var(--oxblood-text);
+    --now-accent: var(--oxblood);
+}
+
+/* 03 Frames */
+.dashboard:has(#imageGallery .card) #statusLog {
+    --log3: "\F272 03  Frames rendered\A";
+    --now:  "\F231  Ready → 04 Record narration";
+}
+.dashboard:has(#imageGallery > .alert-info) #statusLog {
+    --now: "\F287  03  Rendering frames…";
+}
+.dashboard:has(#imageGallery > .alert-danger) #statusLog {
+    --now: "\F659  03  Frame render failed · retry";
+    --now-color: var(--oxblood-text);
+    --now-accent: var(--oxblood);
+}
+
+/* 04 Narration */
+.dashboard:has(#audioList > .card) #statusLog {
+    --log4: "\F272 04  Narration recorded\A";
+    --now:  "\F231  Ready → 05 Final cut";
+}
+.dashboard:has(#audioList > .alert-info) #statusLog {
+    --now: "\F287  04  Recording narration…";
+}
+.dashboard:has(#audioList > .alert-danger) #statusLog {
+    --now: "\F659  04  Narration failed · retry";
+    --now-color: var(--oxblood-text);
+    --now-accent: var(--oxblood);
+}
+
+/* 05 Final cut */
+.dashboard:has(#videoOutput video) #statusLog {
+    --log5: "\F272 05  Final cut exported\A";
+    --now:  "\F592  That's a wrap.";
+}
+.dashboard:has(#videoOutput > .alert-info) #statusLog {
+    --now: "\F287  05  Assembling the final cut…";
+}
+.dashboard:has(#videoOutput > .alert-danger) #statusLog {
+    --now: "\F659  05  Final cut failed · retry";
+    --now-color: var(--oxblood-text);
+    --now-accent: var(--oxblood);
+}
+
+/* Any step running → the newest line's accent pulses */
+.dashboard:has(.left-panel .alert-info) #statusLog::after {
+    animation: log-pulse 1.4s ease-in-out infinite;
+}
+
+
+/* ==========================================================================
+   07  MOTION
+   ========================================================================== */
+
+@property --sweep {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes reveal {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes develop {                  /* images "develop" like a print */
+    from { opacity: 0; filter: brightness(0.4) sepia(0.4); }
+    to   { opacity: 1; filter: none; }
+}
+
+@keyframes progress-run {
+    from { background-position: -30% 100%; }
+    to   { background-position: 130% 100%; }
+}
+
+@keyframes node-breathe {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(184, 149, 90, 0.0); }
+    50%      { box-shadow: 0 0 0 5px rgba(184, 149, 90, 0.18); }
+}
+
+@keyframes log-pulse {
+    0%, 100% { border-left-color: var(--now-accent); }
+    50%      { border-left-color: transparent; }
+}
+
+@keyframes dot-blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.25; }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes leader-sweep {
+    from { --sweep: 0deg; }
+    to   { --sweep: 360deg; }
+}
+
+@keyframes leader-count {
+    0%, 33.32%    { content: "3"; }
+    33.33%, 66.65% { content: "2"; }
+    66.66%, 100%   { content: "1"; }
+}
+
+@keyframes nav-solidify {
+    from {
+        background-color: rgba(14, 13, 11, 0);
+        border-bottom-color: transparent;
+        -webkit-backdrop-filter: blur(0);
+        backdrop-filter: blur(0);
+    }
+    to {
+        background-color: rgba(14, 13, 11, 0.86);
+        border-bottom-color: var(--hairline);
+        -webkit-backdrop-filter: blur(14px) saturate(120%);
+        backdrop-filter: blur(14px) saturate(120%);
+    }
+}
+
+/* Sections fade up on load, 60ms apart */
+.left-panel > *,
+.right-panel > * {
+    animation: rise var(--dur-3) var(--ease) both;
+}
+
+.left-panel > :nth-child(1)  { animation-delay: calc(var(--stagger) * 1); }
+.left-panel > :nth-child(2)  { animation-delay: calc(var(--stagger) * 2); }
+.left-panel > :nth-child(3)  { animation-delay: calc(var(--stagger) * 3); }
+.left-panel > :nth-child(4)  { animation-delay: calc(var(--stagger) * 4); }
+.left-panel > :nth-child(5)  { animation-delay: calc(var(--stagger) * 5); }
+.left-panel > :nth-child(6)  { animation-delay: calc(var(--stagger) * 6); }
+.right-panel > :nth-child(1) { animation-delay: calc(var(--stagger) * 2); }
+.right-panel > :nth-child(2) { animation-delay: calc(var(--stagger) * 3); }
+.right-panel > :nth-child(3) { animation-delay: calc(var(--stagger) * 4); }
+.right-panel > :nth-child(4) { animation-delay: calc(var(--stagger) * 5); }
+
+/* Content injected by main.js fades in as it lands */
+#storyOutput > *,
+#storyboard > *,
+#audioList > *,
+#videoOutput > *,
+.image-gallery > * {
+    animation: reveal var(--dur-2) var(--ease) both;
+}
+
+.image-gallery .card-img-top {
+    animation: develop 1.4s var(--ease) both;
+}
+
+#storyboard > :nth-child(2),  .image-gallery > :nth-child(2),  #audioList > :nth-child(2)  { animation-delay: calc(var(--stagger) * 1); }
+#storyboard > :nth-child(3),  .image-gallery > :nth-child(3),  #audioList > :nth-child(3)  { animation-delay: calc(var(--stagger) * 2); }
+#storyboard > :nth-child(4),  .image-gallery > :nth-child(4),  #audioList > :nth-child(4)  { animation-delay: calc(var(--stagger) * 3); }
+#storyboard > :nth-child(5),  .image-gallery > :nth-child(5),  #audioList > :nth-child(5)  { animation-delay: calc(var(--stagger) * 4); }
+#storyboard > :nth-child(6),  .image-gallery > :nth-child(6),  #audioList > :nth-child(6)  { animation-delay: calc(var(--stagger) * 5); }
+#storyboard > :nth-child(7),  .image-gallery > :nth-child(7),  #audioList > :nth-child(7)  { animation-delay: calc(var(--stagger) * 6); }
+#storyboard > :nth-child(8),  .image-gallery > :nth-child(8),  #audioList > :nth-child(8)  { animation-delay: calc(var(--stagger) * 7); }
+#storyboard > :nth-child(n+9), .image-gallery > :nth-child(n+9), #audioList > :nth-child(n+9) { animation-delay: calc(var(--stagger) * 8); }
+
+/* In-progress alerts */
+.left-panel .alert-info {
+    animation:
+        reveal var(--dur-2) var(--ease) both,
+        progress-run 1.8s var(--ease) infinite;
+}
+
+.left-panel .alert-info::before {
+    animation: dot-blink 1.2s ease-in-out infinite;
+}
+
+/* Loader */
+.loader {
+    animation: leader-sweep 1s linear infinite;
+}
+
+.loader::before {
+    animation: spin 1s linear infinite;
+}
+
+.loader::after {
+    animation: leader-count 3s steps(1, end) infinite;
+}
+
+/* Navbar: transparent at the top, solid + blurred once you scroll */
+@supports (animation-timeline: scroll()) {
+    .navbar-custom {
+        animation: nav-solidify linear both;
+        animation-timeline: scroll(root);
+        animation-range: 0 120px;
+    }
+}
+
+/* Respect reduced motion everywhere */
+@media (prefers-reduced-motion: reduce) {
+    .left-panel > *,
+    .right-panel > *,
+    #storyOutput > *,
+    #storyboard > *,
+    #audioList > *,
+    #videoOutput > *,
+    .image-gallery > *,
+    .image-gallery .card-img-top,
+    .left-panel .alert-info,
+    .left-panel .alert-info::before,
+    .workflow li::before,
+    #statusLog::after,
+    .loader,
+    .loader::before {
+        animation: none !important;
+    }
+
+    .left-panel .alert-info {
+        background-position: 0 100%;
+        background-size: 100% 1px;
+    }
+
+    .loader::after {
+        animation: none;
+        content: "…";
+    }
+
+    *,
+    *::before,
+    *::after {
+        transition-duration: 1ms !important;
+    }
+
+    .action-btn:hover:not(:disabled),
+    .image-gallery .card:hover .card-img-top {
+        transform: none;
+    }
+}
+
+
+/* ==========================================================================
+   08  RESPONSIVE
+   ========================================================================== */
+
+/* Tablet and below: one column, controls first */
+@media (max-width: 991.98px) {
+    .dashboard {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .right-panel {
+        order: -1;
+        padding-top: 0;
+    }
+
+    /* The hero sits above everything so the page still opens on the title */
+    .left-panel {
+        display: contents;
+    }
+
+    .welcome-card {
+        order: -2;
+        padding-top: var(--s-8);
+    }
+
+    .card-section {
+        order: 0;
+    }
+}
+
+/* Phones */
+@media (max-width: 599.98px) {
+    :root {
+        --nav-h: 3.25rem;
+    }
+
+    .logo::after {
+        font-size: 1.3rem;
+    }
+
+    .nav-right span {
+        font-size: 0.5625rem;
+        letter-spacing: 0.16em;
+    }
+
+    .welcome-card {
+        padding: var(--s-7) 0 var(--s-5);
+    }
+
+    .welcome-card h1 {
+        max-width: none;
+    }
+
+    .placeholder,
+    .image-gallery:not(:has(*))::before {
+        font-size: 1.2rem;
+    }
+
+    .image-gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: var(--s-3);
+    }
+
+    .image-gallery > [class*="col-"] {
+        margin-bottom: var(--s-3) !important;   /* tighter than .mb-4's !important */
+    }
+
+    #storyboard .card-body {
+        padding-left: var(--s-4);
+    }
+
+    #audioList .card-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .content-box,
+    .status-box {
+        padding: var(--s-4);
+    }
+}
+
+/* Very narrow phones: single-column gallery */
+@media (max-width: 379.98px) {
+    .image-gallery {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nav-right {
+        display: none;
+    }
+}
