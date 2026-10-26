@@ -35,7 +35,10 @@ Story:
 {story}
 """
 
-        response = self.gemini.model.generate_content(prompt)
+        response = self.gemini.client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+            )
 
         text = response.text.strip()
 
